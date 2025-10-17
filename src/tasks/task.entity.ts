@@ -1,17 +1,23 @@
-import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
-import { TaskStatus } from "./task.model";
+import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { TaskStatus } from './task.model';
+import { User } from '../auth/user.entity';
+import { Exclude } from 'class-transformer';
 
 @Entity()
-export class Task{
-    @PrimaryGeneratedColumn('uuid')
-    id: string;
+export class Task {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-    @Column()
-    title: string;
+  @Column()
+  title: string;
 
-    @Column()
-    description: string;
+  @Column()
+  description: string;
 
-    @Column()
-    status: TaskStatus;
+  @Column()
+  status: TaskStatus;
+
+  @ManyToOne((_type) => User, (user) => user.tasks, { eager: false })
+  @Exclude({ toPlainOnly: true }) // exclude the user property from the plain object
+  user: User;
 }

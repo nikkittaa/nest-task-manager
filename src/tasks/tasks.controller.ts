@@ -3,10 +3,12 @@ import {
   Controller,
   Delete,
   Get,
+  Logger,
   Param,
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { Task, TaskStatus, TaskStatus as TaskStatusEnum } from './task.model';
@@ -14,23 +16,37 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { GetTasksFilterDto } from './dto/get-tasks-filter.dto';
 import { UpdateTaskStatusDto } from './dto/update-task-status.dto';
 import { Task as TaskEntity } from './task.entity';
-import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { AuthGuard } from '@nestjs/passport';
+import { User } from '../auth/user.entity';
+import { GetUser } from '../auth/get-user.decorator';
 
-@ApiTags('tasks')
 @Controller('tasks')
+@UseGuards(AuthGuard())
 export class TasksController {
+  private logger = new Logger('TasksController');
   constructor(private tasksService: TasksService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get all tasks' })
-  @ApiResponse({ status: 200, description: 'Return all tasks.', type: [TaskEntity] })
-  @ApiQuery({ name: 'filterDto', type: GetTasksFilterDto, required: false })
-  getTasks(@Query() filterDto: GetTasksFilterDto): Promise<Task[]> {
+  getTasks(
+    @Query() filterDto: GetTasksFilterDto,
+    @GetUser() user: User,
+  ): Promise<Task[]> {
+    this.logger.verbose(
+      `User "${user.username}" retrieving all tasks. Filters: ${JSON.stringify(filterDto)}`,
+    );
     if (Object.keys(filterDto).length > 0) {
-      return this.tasksService.getTasksWithFilters(filterDto);
+      return this.tasksService.getTasksWithFilters(filterDto, user);
     }
 
-    return this.tasksService.getAllTasks();
+    return this.tasksService.getAllTasks(user);
   }
 
   // @Get()
@@ -44,11 +60,11 @@ export class TasksController {
   // }
 
   @Get('/:id')
-  @ApiOperation({ summary: 'Get a task by id' })
-  @ApiResponse({ status: 200, description: 'Returns a task with given id', type: [TaskEntity] })
-  @ApiParam({ name: 'id', type: String, description: 'The id of the task' })
-  getTaskById(@Param('id') id: string): Promise<TaskEntity> {
-    return this.tasksService.getTaaskById(id);
+  getTaskById(
+    @Param('id') id: string,
+    @GetUser() user: User,
+  ): Promise<TaskEntity> {
+    return this.tasksService.getTaskById(id, user);
   }
 
   // @Get('/:id')
@@ -57,11 +73,14 @@ export class TasksController {
   // }
 
   @Post()
-  @ApiOperation({ summary: 'Create a new task' })
-  @ApiResponse({ status: 201, description: 'Returns the created task.', type: TaskEntity })
-  @ApiBody({ schema: { type: 'object', properties: { title: { type: 'string' }, description: { type: 'string' } } } })
-  createTask(@Body() createTaskDto: CreateTaskDto): Promise<TaskEntity> {
-    return this.tasksService.createTask(createTaskDto);
+  createTask(
+    @Body() createTaskDto: CreateTaskDto,
+    @GetUser() user: User,
+  ): Promise<TaskEntity> {
+    this.logger.verbose(
+      `User "${user.username}" creating a new task. Data: ${JSON.stringify(createTaskDto)}`,
+    );
+    return this.tasksService.createTask(createTaskDto, user);
   }
 
   // @Post()
@@ -70,11 +89,8 @@ export class TasksController {
   // }
 
   @Delete('/:id')
-  @ApiOperation({ summary: 'Delete a task by id' })
-  @ApiResponse({ status: 200, description: 'Returns nothing', type: TaskEntity })
-  @ApiParam({ name: 'id', type: String, description: 'The id of the task' })
-  deleteTaskById(@Param('id') id: string): void {
-    this.tasksService.deleteTaskById(id);
+  deleteTaskById(@Param('id') id: string, @GetUser() user: User): void {
+    this.tasksService.deleteTaskById(id, user);
   }
 
   // @Delete('/:id')
@@ -83,15 +99,16 @@ export class TasksController {
   // }
 
   @Patch('/:id/status')
-  @ApiOperation({ summary: 'Update the status of a task by id' })
-  @ApiResponse({ status: 200, description: 'Returns the updated task.', type: TaskEntity })
-  @ApiParam({ name: 'id', type: String, description: 'The id of the task' })
-  @ApiBody({ schema: { type: 'object', properties: { status: { type: 'string', enum: Object.values(TaskStatus) } } } })
   updateTaskStatus(
     @Param('id') id: string,
     @Body() updateTaskStatusDto: UpdateTaskStatusDto,
+    @GetUser() user: User,
   ): Promise<TaskEntity> {
-    return this.tasksService.updateTaskStatus(id, updateTaskStatusDto.status);
+    return this.tasksService.updateTaskStatus(
+      id,
+      user,
+      updateTaskStatusDto.status,
+    );
   }
   // @Patch('/:id/status')
   // updateStatus(@Param('id') id : string ,@Body() updateTaskStatusDto : UpdateTaskStatusDto ) : Task | string{
