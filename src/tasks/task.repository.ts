@@ -81,9 +81,16 @@ export class TaskRepository {
     return task;
   }
 
-  async deleteTask(id: string, user: User): Promise<void> {
-    const found = await this.findOne(id, user);
-    await this.repository.delete(id);
+  async deleteTask(id: string, user: User): Promise<Task> {
+    const found = await this.repository.findOne({ where: { id, user } });
+
+    if (!found) {
+      throw new NotFoundException('Task not found');
+    }
+
+    await this.repository.delete({id, user});
+    return found;
+  
   }
 
   async updateTaskStatus(

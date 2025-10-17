@@ -80,7 +80,7 @@ export class TasksService {
 
   // }
 
-  deleteTaskById(id: string, user: User): Promise<void> {
+   deleteTaskById(id: string, user: User): Promise<TaskEntity> {
     return this.taskRepository.deleteTask(id, user);
   }
 
